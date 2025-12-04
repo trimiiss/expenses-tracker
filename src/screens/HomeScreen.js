@@ -4,13 +4,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
-// Imports from your other files
+// Imports
 import Card from '../components/Card';
 import TransactionItem from '../components/TransactionItem';
 import AddModal from '../components/AddModal';
+import ExpenseChart from '../components/ExpenseChart'; // <--- Import the chart
 
 export default function HomeScreen() {
-  // Use a mock array for initial state
   const [transactions, setTransactions] = useState([
     { id: '1', text: 'Salary Deposit', amount: 3000, type: 'income' },
     { id: '2', text: 'Rent Payment', amount: 1200, type: 'expense' },
@@ -18,7 +18,7 @@ export default function HomeScreen() {
   ]);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // 1. Calculations
+  // 1. Calculations for Totals
   const { total, income, expense } = useMemo(() => {
     let inc = 0;
     let exp = 0;
@@ -34,30 +34,52 @@ export default function HomeScreen() {
     };
   }, [transactions]);
 
-  // 2. Actions
+  // 2. Calculations for Chart Data
+  const chartData = useMemo(() => {
+    // A palette of colors to cycle through for the pie chart slices
+    const colorPalette = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#0891b2', '#4f46e5'];
+
+    return transactions
+      .filter(t => t.type === 'expense')
+      .map((t, index) => ({
+        name: t.text,
+        amount: parseFloat(t.amount),
+        // Cycle through the color palette based on index
+        color: colorPalette[index % colorPalette.length], 
+        legendFontColor: "#7F7F7F",
+        legendFontSize: 13
+      }));
+  }, [transactions]);
+
+  // 3. Actions
   const handleAdd = (data) => {
     const newTransaction = {
-      id: Date.now().toString(), // Use timestamp for unique ID
+      id: Date.now().toString(),
       text: data.text,
       amount: parseFloat(data.amount),
       type: data.type,
     };
-
-    // Add new transaction to the beginning of the list (newest first)
     setTransactions(prev => [newTransaction, ...prev]);
   };
 
   const handleDelete = (id) => {
-    // Filter out the transaction with the matching ID
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
+  // 4. Render Header Component (To make the Chart scrollable with the list)
+  const renderListHeader = () => (
+    <View style={styles.listHeaderContainer}>
+      {/* Pass the prepared data to the chart */}
+      <ExpenseChart chartData={chartData} />
+      <Text style={styles.sectionTitle}>Recent Transactions</Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Top Header Section */}
+      {/* Fixed Top Header Section */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Tracker</Text>
         <View style={styles.balanceContainer}>
@@ -72,12 +94,13 @@ export default function HomeScreen() {
         <Card title="Expense" amount={expense} iconName="trending-down" type="expense" />
       </View>
 
-      {/* List Section */}
+      {/* List Section containing the Chart */}
       <View style={styles.listContainer}>
-        <Text style={styles.listHeader}>Recent Transactions</Text>
         <FlatList
           data={transactions}
           keyExtractor={item => item.id}
+          // The chart is now part of the scrollable area
+          ListHeaderComponent={renderListHeader} 
           renderItem={({ item }) => (
             <TransactionItem item={item} onDelete={handleDelete} />
           )}
@@ -114,7 +137,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#4f46e5',
     paddingTop: 60,
-    paddingBottom: 50, // Extra padding for overlap
+    paddingBottom: 50,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -141,18 +164,23 @@ const styles = StyleSheet.create({
   cardsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 18,
-    marginTop: -30, // Negative margin to overlap
+    marginTop: -30,
   },
   listContainer: {
     flex: 1,
     paddingHorizontal: 24,
-    marginTop: 24,
+    marginTop: 10, // Reduced top margin slightly
   },
-  listHeader: {
+  listHeaderContainer: {
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  sectionTitle: { // Renamed from listHeader to avoid confusion
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 16,
+    marginTop: 10,
   },
   emptyText: {
     textAlign: 'center',
